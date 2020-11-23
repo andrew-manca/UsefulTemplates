@@ -1,0 +1,68 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webAppSkuName": {
+      "defaultValue": "S1",
+      "allowedValues": [ "F1", "D1", "B1", "B2", "B3", "S1", "S2", "S3", "P1", "P2", "P3", "P4" ],
+      "type": "String",
+      "metadata": { "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/" }
+    },
+    "webAppSkuCapacity": {
+      "defaultValue": 1,
+      "minValue": 1,
+      "type": "Int",
+      "metadata": { "description": "Describes plan's instance count" }
+    },
+    "webAppName": {
+      "type": "Array",
+      "metadata": { "description": "Relative DNS name for the WebApps, must be globally unique.  An index will be appended for each Web App." }
+    },
+    "webAppLocation": {
+      "defaultValue": "East US",
+      "type": "String",
+      "metadata": { "description": "Location of the App Service Plan" }
+    },
+    "webAppCount": {
+      "defaultValue": 7,
+      "type": "Int"
+    }
+  },
+  "variables": {
+    "envsuffix": "309",
+    "prefix": "US-N-DOLPH"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2015-08-01",
+      "name": "[concat(variables('prefix'),'-ASP-',parameters('webAppName')[copyIndex('farmCopy')].name,'-',variables('envsuffix'))]",
+      "location": "East US",
+      "sku": {
+        "name": "[parameters('webAppSkuName')]",
+        "capacity": "[parameters('webAppSkuCapacity')]"
+      },
+      "properties": { "name": "[concat(variables('prefix'),'-ASP-',parameters('webAppName')[copyIndex('farmCopy')].name,'-',variables('envsuffix'))]" },
+      "copy": {
+        "name": "farmCopy",
+        "count": "[parameters('webAppCount')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2015-08-01",
+      "name": "[concat(variables('prefix'),'-WAP-',parameters('webAppName')[copyIndex('siteCopy')].name,'-',variables('envsuffix'),copyIndex())]",
+      "location": "East US",
+      "dependsOn": ["farmCopy"],
+      "properties": {
+        "name": "[concat(variables('prefix'),'-WAP-',parameters('webAppName')[copyIndex('siteCopy')].name,'-',variables('envsuffix'),copyIndex())]",
+        "serverFarmId": "[concat(variables('prefix'),'-ASP-',parameters('webAppName')[copyIndex('siteCopy')].name,'-',variables('envsuffix'))]"
+      },
+      "resources": [],
+      "copy": {
+        "name": "siteCopy",
+        "count": "[parameters('webAppCount')]"
+      }
+    }
+  ]
+}

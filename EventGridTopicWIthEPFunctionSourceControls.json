@@ -1,0 +1,253 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "subscriptionId": {
+            "type": "String",
+            "metadata": {
+                "description": "SubscriptionId"
+            }
+        },
+        "name": {
+            "type": "String",
+            "metadata": {
+                "description": "Function App name"
+            }
+        },
+        "location": {
+            "defaultValue": "centraluseuap",
+            "type": "String",
+            "metadata": {
+                "description": "location except for AppInsights"
+            }
+        },
+        "hostingPlanName": {
+            "type": "String",
+            "metadata": {
+                "description": "hosting plan name"
+            }
+        },
+        "serverFarmResourceGroup": {
+            "type": "String",
+            "metadata": {
+                "description": "resource group for server farm"
+            }
+        },
+        "storageAccountName": {
+            "type": "String",
+            "metadata": {
+                "description": "The name of the strage account"
+            }
+        },
+        "functionWorkerRuntime": {
+            "type": "String",
+            "metadata": {
+                "description": "The fucntion worker runtiime e.g. (java)"
+            }
+        },
+        "linuxFxVersion": {
+            "defaultValue": "Python|3.7",
+            "type": "String",
+            "metadata": {
+                "description": "linuxFxVersion that specify the language runtime for linux. (Java|8) for example"
+            }
+        },
+        "functionName": {
+            "defaultValue": "EventGridOne",
+            "type": "String"
+        },
+        "maximumElasticWorkerCount": {
+            "defaultValue": 20,
+            "type": "Int",
+            "metadata": {
+                "description": "max worker count"
+            }
+        },
+        "appInsightsName": {
+            "type": "String",
+            "metadata": {
+                "description": "the name of application insights"
+            }
+        },
+        "appInsightslocation": {
+            "defaultValue": "eastus",
+            "type": "String",
+            "metadata": {
+                "description": "the location of application insights"
+            }
+        },
+        "systemTopicName": {
+            "defaultValue": "mystoragesystemtopic",
+            "type": "String",
+            "metadata": {
+                "description": "Provide a name for the system topic."
+            }
+        },
+        "eventSubName": {
+            "defaultValue": "subToStorage",
+            "type": "String",
+            "metadata": {
+                "description": "Provide a name for the Event Grid subscription."
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "name": "[parameters('name')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('microsoft.insights/components', parameters('appInsightsName'))]",
+                "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "tags": {},
+            "kind": "functionapp,linux",
+            "properties": {
+                "name": "[parameters('name')]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "[parameters('functionWorkerRuntime')]"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(concat('microsoft.insights/components/', parameters('appInsightsName')), '2015-05-01').InstrumentationKey]"
+                        },
+                        {
+                            "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                            "value": "[reference(concat('microsoft.insights/components/', parameters('appInsightsName')), '2015-05-01').ConnectionString]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[concat(toLower(parameters('name')), '94ed')]"
+                        },
+                        {
+                            "name": "APPINSIGHTS_ENABLE_IN_PROC_AGENT",
+                            "value": "true"
+                        },
+                        {
+                            "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                            "value": "~2"
+                        }
+                    ],
+                    "linuxFxVersion": "[parameters('linuxFxVersion')]"
+                },
+                "serverFarmId": "[concat('/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('serverFarmResourceGroup'), '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]",
+                "clientAffinityEnabled": false
+            },
+            "resources": [
+                {
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "apiVersion": "2016-08-01",
+                    "location": "westus",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites/', parameters('name'))]"
+                    ],
+                  "properties": {
+                    "repoUrl": "https://github.com/andrew-manca/pythonEventGridBase",
+                    "branch": "master",
+                    "publishRunbook": true,
+                    "isManualIntegration": true
+                  }
+                }
+            ]
+        },
+  {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2018-02-01",
+            "name": "[parameters('hostingPlanName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "Tier": "ElasticPremium",
+                "Name": "EP1"
+            },
+            "kind": "linux",
+            "properties": {
+                "name": "[parameters('hostingPlanName')]",
+                "workerSize": "3",
+                "workerSizeId": "3",
+                "numberOfWorkers": "1",
+                "reserved": true,
+                "maximumElasticWorkerCount": 20
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "name": "[parameters('appInsightsName')]",
+            "location": "[parameters('appInsightslocation')]",
+            "tags": {
+                "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites/', parameters('name'))]": "Resource"
+            },
+            "kind": "web",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[parameters('name')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[parameters('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2"
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[parameters('systemTopicName')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[parameters('storageAccountName')]"
+            ],
+            "properties": {
+                "source": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[concat(parameters('systemTopicName'), '/', parameters('eventSubName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', parameters('systemTopicName'))]",
+                "[resourceId('Microsoft.Web/sites/sourcecontrols',  parameters('name'), 'web')]"
+            ],
+            "properties": {
+                "destination": {
+                    "properties": {
+                        "resourceId": "[resourceId('Microsoft.Web/sites/functions', parameters('name'), parameters('functionName'))]",
+                        "maxEventsPerBatch": 1,
+                        "preferredBatchSizeInKilobytes": 64
+                    },
+                    "endpointType": "AzureFunction"
+                },
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Storage.BlobCreated",
+                        "Microsoft.Storage.BlobDeleted"
+                    ]
+                }
+            }
+        }
+    ]
+}
