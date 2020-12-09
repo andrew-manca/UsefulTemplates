@@ -25,7 +25,7 @@
             "metadata": { "description": "Storage Account type" }
         },
         "repoURL": {
-            "defaultValue": "https://andrew-manca:83587df165c2377c1ed434145ad8d49190e7cc6e@github.com/andrew-manca/testPrivateRepo.git",
+            "defaultValue": "https://andrew-manca:{AccessKey}@github.com/andrew-manca/testPrivateRepo.git",
             "type": "String",
             "metadata": { "description": "The URL for the GitHub repository that contains the project to deploy." }
         },
