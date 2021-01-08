@@ -1,0 +1,187 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+
+
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "webSocketsEnabled": false,
+    "clientAffinityEnabled": false,
+
+    "appServicePlanName": "stm-emp-api-east-0-dev-amanca",
+    "appServiceName": "stm-emp-api-east-0-dev-amanca",
+
+    "vnetName": "stm-emp-api-east-dev-amanca",
+    "subnetName": "stm-emp-api-east-0-dev-amanca",
+
+  },
+  "resources": [
+
+    {
+      "comments": "*** App Service Plan ***",
+      "type": "Microsoft.Web/serverfarms",
+      "name": "[variables('appServicePlanName')]",
+      "apiVersion": "2016-09-01",
+      "location": "[variables('location')]",
+      "tags": {
+        "UpdatedBy": "gbryniar",
+        "DataCenterState": "active",
+        "UpdatedOn": "01/06/2021 12:51:55"
+      },
+      "sku": {
+        "name": "S1",
+        "capacity": 1
+      },
+      "kind": "app",
+      "properties": {},
+      "dependsOn": []
+    },
+
+    {
+      "comments": "*** App Service/Web app ***",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('appServiceName')]",
+      "apiVersion": "2018-11-01",
+      "location": "[variables('location')]",
+      "tags": {
+        "UpdatedBy": "gbryniar",
+        "UpdatedOn": "01/06/2021 12:51:55"
+      },
+      "kind": "app",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      ],
+      "properties": {
+        "hostNameSslStates": [],
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "clientAffinityEnabled": "[variables('clientAffinityEnabled')]",
+        "siteConfig": {
+          "remoteDebuggingEnabled": true,
+          "remoteDebuggingVersion": "VS2017",
+          "use32BitWorkerProcess": false,
+          "webSocketsEnabled": "[variables('webSocketsEnabled')]",
+          "alwaysOn": true,
+          "virtualApplications": [
+            {
+              "virtualPath": "/",
+              "physicalPath": "site\\wwwroot",
+              "preloadEnabled": true
+            }
+          ],
+          "minTlsVersion": "1.2",
+          "cors": {
+            "allowedOrigins": []
+          },
+          "ipSecurityRestrictions": [
+            {
+              "ipAddress": "141.123.0.0/16",
+              "action": "Allow",
+              "tag": "Default",
+              "priority": 200,
+              "name": "Paychex",
+              "description": "Allow traffic from Paychex"
+            },
+            {
+              "ipAddress": "165.225.0.0/16",
+              "action": "Allow",
+              "tag": "Default",
+              "priority": 210,
+              "name": "Zscaler",
+              "description": "Allow traffic from Zscaler"
+            },
+            {
+              "ipAddress": "Any",
+              "action": "Deny",
+              "priority": 2147483647,
+              "name": "Deny all",
+              "description": "Deny all access"
+            }
+          ],
+          "scmIpSecurityRestrictions": [
+            {
+              "ipAddress": "Any",
+              "action": "Allow",
+              "priority": 1,
+              "name": "Allow all",
+              "description": "Allow all access"
+            }
+          ],
+          "metadata": [
+            {
+              "name": "CURRENT_STACK",
+              "value": "dotnet"
+            }
+          ]
+
+        },
+        "httpsOnly": false
+      },
+
+      "resources": []
+    },
+
+
+    {
+      "comments": "*** VNET Integration - Production ***",
+      "type": "Microsoft.Web/sites/networkConfig",
+      "apiVersion": "2019-08-01",
+      "name": "[concat(variables('appServiceName'), '/',  'virtualNetwork')]",
+      "location": "[variables('location')]",
+      "dependsOn": [ "[resourceId('Microsoft.Web/sites',variables('appServiceName'))]",
+                  "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]" 
+                   ],
+      "properties": {
+            "subnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"      }
+    },
+
+
+
+    {
+      "comments": "*** Standalone VNET ***",
+      "apiVersion": "2020-05-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "tags": {
+        "UpdatedBy": "gbryniar",
+        "UpdatedOn": "01/06/2021 12:51:55"
+      },
+      "properties": {
+        "addressSpace": { "addressPrefixes": [ "10.2.0.0/20" ] }
+      }
+    },
+
+        {
+              "comments": "*** Standalone SUBNET ***",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+             "apiVersion": "2020-07-01",            
+             "name": "[concat(variables('vnetName'), '/', variables('subnetName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            ],
+            "properties": {
+                 "addressPrefix": "10.2.0.0/27",
+                "delegations": [
+                                {
+                                    "name": "delegation",
+                                    "properties": {
+                                        "serviceName": "Microsoft.Web/serverfarms"
+                                    }
+                                }
+                            ],
+            "serviceEndpoints": [
+          {
+            "service": "Microsoft.Web",
+            "locations": [ "*" ]
+          }
+        ]
+            }
+        }
+
+
+  ]
+
+}

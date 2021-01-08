@@ -134,7 +134,7 @@
                     ],
                     "properties": {
                         "subnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
-                        "swiftSupported": true
+                        "isSwift": true
             }
            }
                 
