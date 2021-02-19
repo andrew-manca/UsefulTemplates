@@ -224,11 +224,11 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-                "[resourceId('Microsoft.Web/sites/slots', concat(variables('functionAppName'), '/deployment'))]"
+                "[resourceId('Microsoft.Web/sites/slots',variables('functionAppName'), 'deployment')]"
             ],
             "properties": {
                 "enabled": true,
-                "unauthenticatedClientAction": "RedirectToLoginPage",
+                "unauthenticatedClientAction": "AllowAnonymous",
                 "tokenStoreEnabled": true,
                 "defaultProvider": "AzureActiveDirectory",
                 "clientId": "[parameters('clientId')]",
