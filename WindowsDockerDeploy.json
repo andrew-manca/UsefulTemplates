@@ -1,0 +1,90 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "webAppName": {
+      "type": "string",
+      "defaultValue": "[concat('webApp-', uniqueString(resourceGroup().id))]",
+      "minLength": 2,
+      "metadata": {
+        "description": "Web app name."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "P1V3",
+      "metadata": {
+        "description": "The SKU of App Service Plan."
+      }
+    },
+    "acrName": {
+        "type":"string",
+        "defaultValue": "amancaContainerRegistry",
+        "metadata": {
+        "description": "Name of the azure container registry hosting the app"
+      }
+    },
+    "registryResourceGroupName":{
+        "type":"string",
+        "defaultValue": "amancaLinux",
+        "metadata": {
+        "description": "Name of the Resource Group hosting the ACR"
+      }
+    }
+
+
+  },
+  "variables": {
+    "appServicePlanPortalName": "[concat('AppServicePlan-', parameters('webAppName'))]",
+    "acrFullUrl": "[concat(parameters('acrName'), 'azureacr.io')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('appServicePlanPortalName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('sku')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanPortalName'))]"
+      ],
+      "properties": {
+        "siteConfig":  {
+        "windowsfxversion": "DOCKER|amancaContainerRegistry.azurecr.io/amancawindows:latest",
+         "appSettings": [
+                        {
+                            "name":"DOCKER_REGISTRY_SERVER_USERNAME",
+                            "value": "[listCredentials(resourceId(parameters('registryResourceGroupName'),'Microsoft.ContainerRegistry/registries',parameters('acrName')),'2019-05-01').username]"
+                        },
+                        {
+                            "name":  "DOCKER_REGISTRY_SERVER_URL",
+                            "value":"[concat('https://', variables('acrFullUrl'))]"
+                        },
+                        {
+                            "name":   "DOCKER_REGISTRY_SERVER_PASSWORD",
+                            "value": "[listCredentials(resourceId(parameters('registryResourceGroupName'),'Microsoft.ContainerRegistry/registries',parameters('acrName')),'2019-05-01').passwords[0].value]"
+                        }
+                       
+
+                    ]
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanPortalName'))]"
+      }
+    }
+  ]
+}
